@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"math/big"
 	"time"
 )
@@ -82,6 +81,10 @@ func GetCertificateFromBytes(certBytes []byte) (*x509.Certificate, error) {
 
 	b, _ = pem.Decode(certBytes)
 
+	if b == nil {
+		return nil, ErrFailedDecodeCert
+	}
+
 	return x509.ParseCertificate(b.Bytes)
 }
 
@@ -90,22 +93,26 @@ func GetPrivateKeyFromBytes(keyBytes []byte) (*rsa.PrivateKey, error) {
 
 	b, _ = pem.Decode(keyBytes)
 
+	if b == nil {
+		return nil, ErrFailedDecodeKey
+	}
+
 	return x509.ParsePKCS1PrivateKey(b.Bytes)
 }
 
 func ValidateCertificate(cert *x509.Certificate, key *rsa.PrivateKey, expirationThreshold time.Duration) error {
 	if !key.PublicKey.Equal(cert.PublicKey) {
-		return errors.New("certificate signed by wrong public key")
+		return ErrWrongKeyForCert
 	}
 
 	now := time.Now()
 
 	if now.Before(cert.NotBefore) {
-		return errors.New("certificate is not valid yet")
+		return ErrCertExpired
 	}
 
 	if now.After(cert.NotAfter.Add(-expirationThreshold)) {
-		return errors.New("certificate expired or going to expire soon")
+		return ErrCertExpiredSoon
 	}
 
 	return nil
